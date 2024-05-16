@@ -1,6 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-
-namespace MagicVilla_CouponAPI.Models.DTO
+﻿namespace MagicVilla_CouponAPI.Models.DTO
 {
     public class CouponUpdateDTO
     {
