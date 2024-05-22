@@ -20,14 +20,14 @@ builder.Services.AddAutoMapper(typeof(MappingConfig));
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 builder.Services.AddResponseCaching((responseCachingOptions) =>
 {
-    responseCachingOptions.UseCaseSensitivePaths = true;
-    responseCachingOptions.MaximumBodySize = 1024 * 1024; // 1MB
+    //responseCachingOptions.UseCaseSensitivePaths = true;
+    //responseCachingOptions.MaximumBodySize = 1024 * 1024; // 1MB
 
 });
 builder.Services.AddMemoryCache((memoryCachingOptions) =>
 {
     // Example of setting up a size limit for the cache
-    memoryCachingOptions.SizeLimit = 1024; // Size limit in bytes (or units depending on your implementation)
+   // memoryCachingOptions.SizeLimit = 1024; // Size limit in bytes (or units depending on your implementation)
 });
 
 var app = builder.Build();
@@ -111,35 +111,70 @@ app.MapGet("/api/coupon/{id:int}", (ILogger < Program> _logger, int id, HttpCont
 //POST: CreateCoupon
 //---------------------------------------------------------------------------------------------------------
 app.MapPost("/api/coupon", async (IMapper _mapper,
-    IValidator<CouponCreateDTO> _validation, [FromBody] CouponCreateDTO coupon_C_DTO) =>
+    IValidator<CouponCreateDTO> _validation,
+    [FromBody] CouponCreateDTO coupon_C_DTO) =>
 {
-    APIResponse response = new() { IsSuccess = false, StatusCode = HttpStatusCode.BadRequest };
+    //001: Declare the APIResponse
+    APIResponse response = new() 
+    {
+        //By Default we will set this "IsSuccess" to false
+        IsSuccess = false,
 
+        //By Default we will set this "StatusCode" to 400BadRequest
+        StatusCode = HttpStatusCode.BadRequest
+    };
+
+    //002: Validation 1 - Perform the Validation
     var validationResult = await _validation.ValidateAsync(coupon_C_DTO);
+
+    //If NOT Valid then..
     if (!validationResult.IsValid)
     {
+        //Set ErrorMessages
         response.ErrorMessages.Add(validationResult.Errors.FirstOrDefault().ToString());
+
+        //Return the APIResponse
         return Results.BadRequest(response);
     }
+
+
+    //002: Validation 2 - Check the Validation from DB
     if (CouponStore.couponList.FirstOrDefault(u => u.Name.ToLower() == coupon_C_DTO.Name.ToLower()) != null)
     {
+        //Set ErrorMessages
         response.ErrorMessages.Add("Coupon Name already Exists");
+
+        //Return the APIResponse
         return Results.BadRequest(response);
     }
 
+
+    //Set coupon using AutoMapper
     Coupon coupon = _mapper.Map<Coupon>(coupon_C_DTO);
 
+    //Increment Assuming that this is autoincrement
     coupon.Id = CouponStore.couponList.OrderByDescending(u => u.Id).FirstOrDefault().Id + 1;
+
+    //003: Perform Add to DB
     CouponStore.couponList.Add(coupon);
+
+    //Set back to DTO
     CouponDTO couponDTO = _mapper.Map<CouponDTO>(coupon);
 
+
+    //Finally Set the Responce OK
     response.Result = couponDTO;
     response.IsSuccess = true;
     response.StatusCode = HttpStatusCode.Created;
+
+
     return Results.Ok(response);
     //return Results.CreatedAtRoute("GetCoupon",new { id=coupon.Id }, couponDTO);
     //return Results.Created($"/api/coupon/{coupon.Id}",coupon);
-}).WithName("CreateCoupon").Accepts<CouponCreateDTO>("application/json").Produces<APIResponse>(201).Produces(400);
+}).WithName("CreateCoupon")
+    .Accepts<CouponCreateDTO>("application/json")
+    .Produces<APIResponse>(201)
+    .Produces(400);
 //---------------------------------------------------------------------------------------------------------
 
 //---------------------------------------------------------------------------------------------------------
